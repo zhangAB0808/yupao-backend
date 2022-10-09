@@ -26,6 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.yupi.yupao.contant.UserConstant.ADMIN_ROLE;
 import static com.yupi.yupao.contant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -177,13 +178,27 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     /**
      * 更新用户信息
+     *
      * @param user
      * @return
      */
     @Override
-    public int updateUser(User user) {
-        //
-      return 1;
+    public int updateUser(User user, User loginUser) {
+        Long userId = user.getId();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        //如果是管理员，允许更新任意用户信息
+        // 如果不是管理员，只允许更新自己的信息
+        if (!isAdmin(loginUser) && userId != loginUser.getId()) {
+            throw new BusinessException(ErrorCode.NO_AUTH);
+        }
+        User oldUser = userMapper.selectById(userId);
+        if (oldUser == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR);
+        }
+        int i = userMapper.updateById(user);
+        return i;
     }
 
     /**
@@ -230,7 +245,46 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return collect;
     }
 
+    /**
+     * 获取当前登录用户信息
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public User getLoginUser(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        User loginUser = (User) userObj;
+        return loginUser;
+    }
 
+    /**
+     * 是否为管理员
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public boolean isAdmin(HttpServletRequest request) {
+        // 仅管理员可查询
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        User user = (User) userObj;
+        return user != null && user.getUserRole() == ADMIN_ROLE;
+    }
+
+    /**
+     * 是否为管理员,重载
+     *
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public boolean isAdmin(User loginUser) {
+        return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
+    }
 
 }
 
