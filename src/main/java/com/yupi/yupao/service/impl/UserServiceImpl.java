@@ -176,6 +176,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     /**
+     * 更新用户信息
+     * @param user
+     * @return
+     */
+    @Override
+    public int updateUser(User user) {
+        //
+      return 1;
+    }
+
+    /**
      * 根据标签搜索用户
      *
      * @param tagNameList
@@ -218,6 +229,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }).map(this::getSafetyUser).collect(Collectors.toList());
         return collect;
     }
+
 
 
 }

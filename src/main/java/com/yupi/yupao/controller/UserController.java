@@ -113,6 +113,17 @@ public class UserController {
         return ResultUtils.success(b);
     }
 
+    @PostMapping("/update")
+    public BaseResponse<Integer> updateUser(User user){
+        //检验参数是否为空
+        if(user == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //验证权限,修改信息
+        int result = userService.updateUser(user);
+        return ResultUtils.success(result);
+    }
+    
     @GetMapping("/search/tags")
     public BaseResponse<List<User>> searchUserByTags(@RequestParam(required = false) List<String> tagNameList){
         if(CollectionUtils.isEmpty(tagNameList)){
