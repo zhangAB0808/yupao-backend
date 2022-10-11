@@ -1,6 +1,7 @@
 package com.yupi.yupao.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.yupao.common.BaseResponse;
 import com.yupi.yupao.common.ErrorCode;
 import com.yupi.yupao.common.ResultUtils;
@@ -114,26 +115,31 @@ public class UserController {
     }
 
     @PostMapping("/update")
-    public BaseResponse<Integer> updateUser(@RequestBody User user,HttpServletRequest request){
+    public BaseResponse<Integer> updateUser(@RequestBody User user, HttpServletRequest request) {
         //检验参数是否为空
-        if(user == null){
+        if (user == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         //验证权限,修改信息
         User loginUser = userService.getLoginUser(request);
-        int result = userService.updateUser(user,loginUser);
+        int result = userService.updateUser(user, loginUser);
         return ResultUtils.success(result);
     }
-    
+
     @GetMapping("/search/tags")
-    public BaseResponse<List<User>> searchUserByTags(@RequestParam(required = false) List<String> tagNameList){
-        if(CollectionUtils.isEmpty(tagNameList)){
+    public BaseResponse<List<User>> searchUserByTags(@RequestParam(required = false) List<String> tagNameList) {
+        if (CollectionUtils.isEmpty(tagNameList)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         List<User> userList = userService.searchUserByTags(tagNameList);
         return ResultUtils.success(userList);
     }
 
-
+    @GetMapping("/recommend")
+    public BaseResponse<Page<User>> recommendUsers(int pageNum,int pageSize) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        Page<User> userList = userService.page(new Page<>(pageNum,pageSize),queryWrapper);
+        return ResultUtils.success(userList);
+    }
 
 }
