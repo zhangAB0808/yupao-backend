@@ -144,25 +144,25 @@ public class UserController {
     }
 
     @GetMapping("/recommend")
-    public BaseResponse<Page<User>> recommendUsers(int pageNum,int pageSize,HttpServletRequest request) {
+    public BaseResponse<Page<User>> recommendUsers(int pageNum, int pageSize, HttpServletRequest request) {
         //获取当前登录用户
         User loginUser = userService.getLoginUser(request);
-        ValueOperations<String,Object> valueOperations = redisTemplate.opsForValue();
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         //将key格式化存取,便于与其他模块区别，防止混淆
         String key = String.format("user:recommend:%s", loginUser.getId());
         //如果有缓存，直接读缓存
         Page<User> userPage = (Page<User>) valueOperations.get(key);
-        if(userPage != null){
+        if (userPage != null) {
             return ResultUtils.success(userPage);
         }
         //无缓存，读数据库
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        userPage = userService.page(new Page<>(pageNum,pageSize),queryWrapper);
+        userPage = userService.page(new Page<>(pageNum, pageSize), queryWrapper);
         //写入缓存中,设置过期时间,如果缓存存入失败了，是要后台捕获异常，数据正常返回给用户，而不是抛异常！！！
         try {
-            valueOperations.set(key,userPage,30, TimeUnit.MINUTES);
+            valueOperations.set(key, userPage, 30, TimeUnit.MINUTES);
         } catch (Exception e) {
-            log.info("redis set key error",e);
+            log.info("redis set key error", e);
         }
         return ResultUtils.success(userPage);
     }
