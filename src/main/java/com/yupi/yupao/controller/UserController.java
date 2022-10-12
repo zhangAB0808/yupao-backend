@@ -10,13 +10,17 @@ import com.yupi.yupao.model.domain.User;
 import com.yupi.yupao.model.domain.request.UserLoginRequest;
 import com.yupi.yupao.model.domain.request.UserRegisterRequest;
 import com.yupi.yupao.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.yupi.yupao.contant.UserConstant.ADMIN_ROLE;
@@ -27,6 +31,7 @@ import static com.yupi.yupao.contant.UserConstant.USER_LOGIN_STATE;
  *
  * @author yupi
  */
+@Slf4j
 @RestController
 @CrossOrigin(origins = {"http://localhost:3000"})
 @RequestMapping("/user")
@@ -34,6 +39,9 @@ public class UserController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private RedisTemplate redisTemplate;
 
     @PostMapping("/register")
     public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
@@ -136,10 +144,27 @@ public class UserController {
     }
 
     @GetMapping("/recommend")
-    public BaseResponse<Page<User>> recommendUsers(int pageNum,int pageSize) {
+    public BaseResponse<Page<User>> recommendUsers(int pageNum,int pageSize,HttpServletRequest request) {
+        //获取当前登录用户
+        User loginUser = userService.getLoginUser(request);
+        ValueOperations<String,Object> valueOperations = redisTemplate.opsForValue();
+        //将key格式化存取,便于与其他模块区别，防止混淆
+        String key = String.format("user:recommend:%s", loginUser.getId());
+        //如果有缓存，直接读缓存
+        Page<User> userPage = (Page<User>) valueOperations.get(key);
+        if(userPage != null){
+            return ResultUtils.success(userPage);
+        }
+        //无缓存，读数据库
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        Page<User> userList = userService.page(new Page<>(pageNum,pageSize),queryWrapper);
-        return ResultUtils.success(userList);
+        userPage = userService.page(new Page<>(pageNum,pageSize),queryWrapper);
+        //写入缓存中,设置过期时间,如果缓存存入失败了，是要后台捕获异常，数据正常返回给用户，而不是抛异常！！！
+        try {
+            valueOperations.set(key,userPage,30, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.info("redis set key error",e);
+        }
+        return ResultUtils.success(userPage);
     }
 
 }

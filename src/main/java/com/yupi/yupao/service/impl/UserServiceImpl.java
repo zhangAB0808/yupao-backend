@@ -11,6 +11,7 @@ import com.yupi.yupao.service.UserService;
 import com.yupi.yupao.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
@@ -41,6 +42,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    private RedisTemplate redisTemplate;
 
     /**
      * 盐值，混淆密码
@@ -258,6 +262,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         }
         Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         User loginUser = (User) userObj;
+        if (loginUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
         return loginUser;
     }
 
