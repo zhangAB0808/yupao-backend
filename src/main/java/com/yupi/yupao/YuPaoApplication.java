@@ -8,7 +8,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @MapperScan("com.yupi.yupao.mapper")
 @EnableScheduling
-
 public class YuPaoApplication {
 
     public static void main(String[] args) {

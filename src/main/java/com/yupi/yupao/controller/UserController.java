@@ -162,7 +162,7 @@ public class UserController {
         try {
             valueOperations.set(key, userPage, 30, TimeUnit.MINUTES);
         } catch (Exception e) {
-            log.info("redis set key error", e);
+            log.error("redis set key error", e);
         }
         return ResultUtils.success(userPage);
     }
