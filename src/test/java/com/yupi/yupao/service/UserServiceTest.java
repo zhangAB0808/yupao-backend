@@ -35,71 +35,71 @@ class UserServiceTest {
     /**
      * 批量插入数据
      */
-    @Test
-    void insertUsers() {
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
-        ArrayList<User> userList = new ArrayList<>();
-        for (int i = 0; i < 100000; i++) {
-            User user = new User();
-            user.setUsername("zzklaus");
-            user.setUserAccount("zzklaus");
-            user.setAvatarUrl("https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fi.qqkou.com%2Fi%2F0a3650915564x3837264329b26.jpg&refer=http%3A%2F%2Fi.qqkou.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=auto?sec=1668154086&t=f1b7d0c1849d9152e78bd7e70b481907");
-            user.setGender(0);
-            user.setUserPassword("zz08089518");
-            user.setPhone("18438909039");
-            user.setEmail("3317306971@qq.com");
-            user.setTags("");
-            user.setUserProfile("哈哈哈");
-            user.setCreateTime(new Date());
-            user.setUpdateTime(new Date());
-            userList.add(user);
-        }
-        userService.saveBatch(userList, 10000);
-        stopWatch.stop();
-        System.out.println("运行时间为：" + stopWatch.getTotalTimeMillis());
-    }
-
-    /**
-     * 异步并发插入数据
-     */
-    @Test
-    void doCurrentInsertUsers() {
-        StopWatch stopWatch = new StopWatch();
-        stopWatch.start();
-        ArrayList<CompletableFuture<Void>> futureList = new ArrayList<>();
-        int j=0;
-        for (int i = 0; i < 20; i++) {
-            ArrayList<User> userList = new ArrayList<>();
-            while (true) {
-                j++;
-                User user = new User();
-                user.setUsername("zzklaus");
-                user.setUserAccount("zzklaus");
-                user.setAvatarUrl("https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fi.qqkou.com%2Fi%2F0a3650915564x3837264329b26.jpg&refer=http%3A%2F%2Fi.qqkou.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=auto?sec=1668154086&t=f1b7d0c1849d9152e78bd7e70b481907");
-                user.setGender(0);
-                user.setUserPassword("zz08089518");
-                user.setPhone("18438909039");
-                user.setEmail("3317306971@qq.com");
-                user.setTags("");
-                user.setUserProfile("哈哈哈");
-                user.setCreateTime(new Date());
-                user.setUpdateTime(new Date());
-                userList.add(user);
-                if(j%5000==0) {
-                    break;
-                }
-            }   //异步执行
-            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                userService.saveBatch(userList, 5000);
-            });
-           futureList.add(future);
-        }
-        CompletableFuture.allOf(futureList.toArray(new CompletableFuture[]{})).join();
-
-        stopWatch.stop();
-        System.out.println("运行时间为：" + stopWatch.getTotalTimeMillis());
-    }
+//    @Test
+//    void insertUsers() {
+//        StopWatch stopWatch = new StopWatch();
+//        stopWatch.start();
+//        ArrayList<User> userList = new ArrayList<>();
+//        for (int i = 0; i < 100000; i++) {
+//            User user = new User();
+//            user.setUsername("zzklaus");
+//            user.setUserAccount("zzklaus");
+//            user.setAvatarUrl("https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fi.qqkou.com%2Fi%2F0a3650915564x3837264329b26.jpg&refer=http%3A%2F%2Fi.qqkou.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=auto?sec=1668154086&t=f1b7d0c1849d9152e78bd7e70b481907");
+//            user.setGender(0);
+//            user.setUserPassword("zz08089518");
+//            user.setPhone("18438909039");
+//            user.setEmail("3317306971@qq.com");
+//            user.setTags("");
+//            user.setUserProfile("哈哈哈");
+//            user.setCreateTime(new Date());
+//            user.setUpdateTime(new Date());
+//            userList.add(user);
+//        }
+//        userService.saveBatch(userList, 10000);
+//        stopWatch.stop();
+//        System.out.println("运行时间为：" + stopWatch.getTotalTimeMillis());
+//    }
+//
+//    /**
+//     * 异步并发插入数据
+//     */
+//    @Test
+//    void doCurrentInsertUsers() {
+//        StopWatch stopWatch = new StopWatch();
+//        stopWatch.start();
+//        ArrayList<CompletableFuture<Void>> futureList = new ArrayList<>();
+//        int j=0;
+//        for (int i = 0; i < 20; i++) {
+//            ArrayList<User> userList = new ArrayList<>();
+//            while (true) {
+//                j++;
+//                User user = new User();
+//                user.setUsername("zzklaus");
+//                user.setUserAccount("zzklaus");
+//                user.setAvatarUrl("https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fi.qqkou.com%2Fi%2F0a3650915564x3837264329b26.jpg&refer=http%3A%2F%2Fi.qqkou.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=auto?sec=1668154086&t=f1b7d0c1849d9152e78bd7e70b481907");
+//                user.setGender(0);
+//                user.setUserPassword("zz08089518");
+//                user.setPhone("18438909039");
+//                user.setEmail("3317306971@qq.com");
+//                user.setTags("");
+//                user.setUserProfile("哈哈哈");
+//                user.setCreateTime(new Date());
+//                user.setUpdateTime(new Date());
+//                userList.add(user);
+//                if(j%5000==0) {
+//                    break;
+//                }
+//            }   //异步执行
+//            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+//                userService.saveBatch(userList, 5000);
+//            });
+//           futureList.add(future);
+//        }
+//        CompletableFuture.allOf(futureList.toArray(new CompletableFuture[]{})).join();
+//
+//        stopWatch.stop();
+//        System.out.println("运行时间为：" + stopWatch.getTotalTimeMillis());
+//    }
 
 
 
