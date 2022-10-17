@@ -2,13 +2,19 @@ package com.yupi.yupao.model.request;
 
 import lombok.Data;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
- * 新增队伍请求体
+ * 更新队伍请求体
  */
 @Data
-public class TeamAddRequest {
+public class TeamUpdateRequest implements Serializable {
+
+    /**
+     * id
+     */
+    private Long id;
 
     /**
      * 队伍名称
@@ -19,11 +25,6 @@ public class TeamAddRequest {
      * 描述
      */
     private String description;
-
-    /**
-     * 最大人数
-     */
-    private Integer maxNum;
 
     /**
      * 过期时间
@@ -39,6 +40,5 @@ public class TeamAddRequest {
      * 密码
      */
     private String password;
-
 
 }
