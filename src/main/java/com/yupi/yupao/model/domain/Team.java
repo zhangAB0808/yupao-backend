@@ -1,7 +1,10 @@
 package com.yupi.yupao.model.domain;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Data;
+import springfox.documentation.spring.web.json.Json;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -35,12 +38,13 @@ public class Team implements Serializable {
     private Integer maxNum;
 
     /**
+     * @JsonFormat(shape = JsonFormat.Shape.STRING,pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ",timezone = "GMT+8")
      * 过期时间
      */
     private Date expireTime;
 
     /**
-     * 用户id
+     * 用户id(队长)
      */
     private Long userId;
 

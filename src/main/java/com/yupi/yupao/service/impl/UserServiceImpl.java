@@ -7,10 +7,13 @@ import com.google.gson.reflect.TypeToken;
 import com.yupi.yupao.common.ErrorCode;
 import com.yupi.yupao.exception.BusinessException;
 import com.yupi.yupao.model.domain.User;
+import com.yupi.yupao.model.vo.UserVo;
 import com.yupi.yupao.service.UserService;
 import com.yupi.yupao.mapper.UserMapper;
+import com.yupi.yupao.utils.AlgorithmUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -18,10 +21,7 @@ import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -192,17 +192,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (userId == null) {
             throw new BusinessException(ErrorCode.NULL_ERROR);
         }
-        //如果是管理员，允许更新任意用户信息
-        // 如果不是管理员，只允许更新自己的信息
-        if (!isAdmin(loginUser) && userId != loginUser.getId()) {
+        //只有管理员或自己能修改信息
+        if (isAdmin(loginUser) || userId.equals(loginUser.getId())) {
+            User oldUser = userMapper.selectById(userId);
+            if (oldUser == null) {
+                throw new BusinessException(ErrorCode.NULL_ERROR);
+            }
+            int i = userMapper.updateById(user);
+            return i;
+        } else {
             throw new BusinessException(ErrorCode.NO_AUTH);
         }
-        User oldUser = userMapper.selectById(userId);
-        if (oldUser == null) {
-            throw new BusinessException(ErrorCode.NULL_ERROR);
-        }
-        int i = userMapper.updateById(user);
-        return i;
     }
 
     /**
@@ -284,7 +284,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     /**
      * 是否为管理员,重载
-     *
      * @param loginUser
      * @return
      */
@@ -292,6 +291,63 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     public boolean isAdmin(User loginUser) {
         return loginUser != null && loginUser.getUserRole() == ADMIN_ROLE;
     }
+
+    /**
+     * 匹配用户人数
+     * @param num
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public List<UserVo> matchUsers(long num, User loginUser) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.ne("id",loginUser.getId());
+        queryWrapper.isNotNull("tags");
+        //查出所有用户，进行相似度匹配
+        List<User> userList = this.list(queryWrapper);
+        String tags = loginUser.getTags();
+        Gson gson = new Gson();
+        //将登录用户的标签json字符串转成List<String>
+        List<String> tagList = gson.fromJson(tags, new TypeToken<List<String>>() {
+        }.getType());
+        //用户列表的下标=>相似度
+        SortedMap<Integer, Long> indexSimilarityMap = new TreeMap<>();
+        for (int i = 0; i < userList.size(); i++) {
+            User user = userList.get(i);
+            String userTags = user.getTags();
+            //无标签
+            if (StringUtils.isBlank(userTags)) {
+                continue;
+            }
+            List<String> userTagList = gson.fromJson(userTags, new TypeToken<List<String>>() {
+            }.getType());
+            long distance = AlgorithmUtils.minDistance(tagList, userTagList);
+            indexSimilarityMap.put(i, distance);
+        }
+        //对相似度进行排序后，取出前num个的下标index(取出key)
+        int i=0;
+        for (Map.Entry<Integer, Long> entry : indexSimilarityMap.entrySet()) {
+            if (i>num){
+                break;
+            }
+            System.out.println(entry.getKey()+":"+entry.getValue());
+           i++;
+        }
+
+        List<Integer> minDistanceIndexList = indexSimilarityMap.keySet().stream().limit(num).collect(Collectors.toList());
+        List<UserVo> userVoList = minDistanceIndexList.stream().map(index -> {
+            UserVo userVo = new UserVo();
+            //通过下标获得user对象
+            User user = userList.get(index);
+            BeanUtils.copyProperties(user, userVo);
+            return userVo;
+        }).collect(Collectors.toList());
+
+        return userVoList;
+    }
+
+
+
 
 }
 

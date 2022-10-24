@@ -2,6 +2,7 @@ package com.yupi.yupao.service;
 
 import com.yupi.yupao.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.yupi.yupao.model.vo.UserVo;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -53,6 +54,7 @@ public interface UserService extends IService<User> {
     /**
      * 更新用户信息
      * @param user
+     * @param loginUser
      * @return
      */
     int updateUser(User user, User loginUser);
@@ -78,5 +80,17 @@ public interface UserService extends IService<User> {
      */
     boolean isAdmin(HttpServletRequest request);
 
+    /**
+     * 是否为管理员,重载
+     * @param loginUser
+     * @return
+     */
     boolean isAdmin(User loginUser);
+
+    /**匹配用户
+     * @param num 匹配用户人数
+     * @param loginUser
+     * @return
+     */
+    List<UserVo> matchUsers(long num, User loginUser);
 }

@@ -8,7 +8,7 @@ spring:
   # DataSource Config
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/yupi?serevrTimezone=UTC
+    url: jdbc:mysql://localhost:3306/yupi?serevrTimezone=GMT%2B8
     username: root
     password: "0808"
   # session 失效时间
@@ -21,6 +21,11 @@ spring:
     port: 6379
     host: localhost
     database: 0
+
+  #格式化全局返回时间字段
+#  jackson:
+#    date-format: yyyy-MM-dd HH:mm:ssm
+#    time-zone: GMT+8
 
 server:
   port: 8080

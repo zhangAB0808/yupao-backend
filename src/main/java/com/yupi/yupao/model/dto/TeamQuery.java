@@ -6,6 +6,7 @@ import com.yupi.yupao.common.PageRequest;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 队伍查询封装类
@@ -16,6 +17,11 @@ public class TeamQuery extends PageRequest {
      * id
      */
     private Long id;
+
+    /**
+     * 根据teamId列表查询
+     */
+    private List<Long> idList;
 
     /**
      * 搜索关键词 （同时对队伍名称和描述搜索）

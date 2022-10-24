@@ -12,9 +12,9 @@ import java.util.List;
  */
 public interface UserMapper extends BaseMapper<User> {
 
-    @Select("select u.* from team t  join userTeam ut on ut.teamId=#{teamId}  join" +
-            "user u on u.id=ut.userId")
-    List<User> searchTeamMembers(@Param("teamId") Long teamId);
+//    @Select("select u.* from team t  join userTeam ut on ut.teamId=#{teamId}  join" +
+//            "user u on u.id=ut.userId")
+//    List<User> searchTeamMembers(@Param("teamId") Long teamId);
 }
 
 

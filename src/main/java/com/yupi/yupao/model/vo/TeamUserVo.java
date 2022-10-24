@@ -65,6 +65,6 @@ public class TeamUserVo implements Serializable {
     /**
      * 队员用户信息
      */
-    List<UserVo> teamMemberList;
+//    List<UserVo> teamMemberList;
 
 }

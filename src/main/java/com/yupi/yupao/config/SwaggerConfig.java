@@ -9,6 +9,10 @@ import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 
+/**
+ * SwaggerConfig
+ * @author Administrator
+ */
 @Configuration
 @EnableSwagger2WebMvc
 public class SwaggerConfig {
@@ -20,8 +24,8 @@ public class SwaggerConfig {
                 .apiInfo(new ApiInfoBuilder()
                         //描述字段支持Markdown语法
                         .description("# Knife4j RESTful APIs")
-                        .termsOfServiceUrl("https://doc.xiaominfo.com/")
-                        .contact("xiaoymin@foxmail.com")
+                        .termsOfServiceUrl("https://doc.html/")
+                        .contact("3317306971@qq.com")
                         .version("1.0")
                         .build())
                 //分组名称
