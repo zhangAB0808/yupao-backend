@@ -26,12 +26,12 @@ class UserServiceTest {
     @Resource
     private UserService userService;
 
-    @Test
-    void searchUserByTags() {
-        List<String> tags = Arrays.asList("java");
-        List<User> users = userService.searchUserByTags(tags);
-        Assert.assertNotNull(users);
-    }
+//    @Test
+//    void searchUserByTags() {
+//        List<String> tags = Arrays.asList("java");
+//        List<User> users = userService.searchUserByTags(tags);
+//        Assert.assertNotNull(users);
+//    }
 
     /**
      * 批量插入数据
@@ -105,10 +105,10 @@ class UserServiceTest {
 
 
 
-    @Test
-    void test() {
-
-    }
+//    @Test
+//    void test() {
+//
+//    }
 
 
 }

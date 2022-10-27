@@ -51,8 +51,7 @@ public class UserController {
         String userAccount = userRegisterRequest.getUserAccount();
         String userPassword = userRegisterRequest.getUserPassword();
         String checkPassword = userRegisterRequest.getCheckPassword();
-        String planetCode = userRegisterRequest.getPlanetCode();
-        long result = userService.userRegister(userAccount, userPassword, checkPassword, planetCode);
+        long result = userService.userRegister(userAccount, userPassword, checkPassword);
         return ResultUtils.success(result);
     }
 
@@ -140,6 +139,13 @@ public class UserController {
         return ResultUtils.success(userList);
     }
 
+    /**
+     *普通模式推荐，直接查询所有用户推荐
+     * @param pageNum
+     * @param pageSize
+     * @param request
+     * @return
+     */
     @GetMapping("/recommend")
     public BaseResponse<Page<User>> recommendUsers(int pageNum, int pageSize, HttpServletRequest request) {
         //获取当前登录用户
@@ -154,6 +160,8 @@ public class UserController {
         }
         //无缓存，读数据库
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        //排除用户自己
+        queryWrapper.ne("id",loginUser.getId());
         userPage = userService.page(new Page<>(pageNum, pageSize), queryWrapper);
         //写入缓存中,设置过期时间,如果缓存存入失败了，是要后台捕获异常，数据正常返回给用户，而不是抛异常！！！
         try {
@@ -165,6 +173,7 @@ public class UserController {
     }
 
     /**
+     * 心动模式，根据相似度匹配推荐用户
      * @param num 匹配用户人数
      * @param request
      * @return

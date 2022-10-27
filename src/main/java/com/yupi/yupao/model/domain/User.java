@@ -8,6 +8,7 @@ import java.util.Date;
 
 /**
  * 用户
+ * @author zhangzheng
  * @TableName user
  */
 @TableName(value ="user")

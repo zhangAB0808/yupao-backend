@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -43,6 +44,7 @@ public class TeamController {
 
     /**
      * 创建队伍
+     *
      * @param teamAddRequest
      * @param request
      * @return
@@ -59,6 +61,7 @@ public class TeamController {
 
     /**
      * 更新队伍
+     *
      * @param teamUpdateRequest
      * @param request
      * @return
@@ -78,6 +81,7 @@ public class TeamController {
 
     /**
      * 根据id查询队伍
+     *
      * @param id
      * @return
      */
@@ -94,7 +98,8 @@ public class TeamController {
     }
 
     /**
-     * 搜索队伍
+     * 搜索获取队伍
+     *
      * @param teamQuery
      * @param request
      * @return
@@ -105,12 +110,14 @@ public class TeamController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         boolean isAdmin = userService.isAdmin(request);
-        List<TeamUserVo> teamList = teamService.listTeams(teamQuery, isAdmin);
+        User loginUser = userService.getLoginUser(request);
+        List<TeamUserVo> teamList = teamService.listTeams(teamQuery, isAdmin, loginUser,true);
         return ResultUtils.success(teamList);
     }
 
     /**
      * 获取我创建的队伍
+     *
      * @param teamQuery
      * @param request
      * @return
@@ -122,12 +129,13 @@ public class TeamController {
         }
         User loginUser = userService.getLoginUser(request);
         teamQuery.setUserId(loginUser.getId());
-        List<TeamUserVo> teamList = teamService.listTeams(teamQuery, true);
+        List<TeamUserVo> teamList = teamService.listTeams(teamQuery, true,loginUser,false);
         return ResultUtils.success(teamList);
     }
 
     /**
      * 获取我加入的队伍
+     *
      * @param teamQuery
      * @param request
      * @return
@@ -146,7 +154,7 @@ public class TeamController {
             return userTeam.getTeamId();
         }).collect(Collectors.toList());
         teamQuery.setIdList(teamIdList);
-        List<TeamUserVo> teamList = teamService.listTeams(teamQuery, true);
+        List<TeamUserVo> teamList = teamService.listTeams(teamQuery, true,loginUser,false);
         return ResultUtils.success(teamList);
     }
 
@@ -175,6 +183,7 @@ public class TeamController {
 
     /**
      * 退出队伍
+     *
      * @param teamQuitRequest
      * @param request
      * @return
@@ -192,6 +201,7 @@ public class TeamController {
 
     /**
      * 队长解散队伍
+     *
      * @param deleteRequest
      * @param request
      * @return
@@ -209,7 +219,6 @@ public class TeamController {
         }
         return ResultUtils.success(true);
     }
-
 
 
 }

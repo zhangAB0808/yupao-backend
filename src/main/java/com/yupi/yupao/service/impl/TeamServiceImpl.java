@@ -26,9 +26,14 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 队伍服务实现类
@@ -119,7 +124,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
     }
 
     @Override
-    public List<TeamUserVo> listTeams(TeamQuery teamQuery, boolean isAdmin) {
+    public List<TeamUserVo> listTeams(TeamQuery teamQuery, boolean isAdmin, User loginUser,boolean isFromTeam) {
         //组合条件查询
         QueryWrapper<Team> queryWrapper = new QueryWrapper<>();
         if (teamQuery != null) {
@@ -153,15 +158,17 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
                 queryWrapper.eq("userId", userId);
             }
             //根据状态查询，只有管理员可以查看非公开的队伍
-            Integer status = teamQuery.getStatus();
-            TeamStatusEnum statusEnum = TeamStatusEnum.getEnumByValue(status);
-            if (statusEnum == null) {
-                statusEnum = TeamStatusEnum.PUBLIC;
-            }
-            if (!isAdmin && TeamStatusEnum.PUBLIC.equals(statusEnum)) {
+            //如果是展示队伍页，根据具体要求查询状态，如果是查看自己加入或创建的队伍，则不需要加，直接查出公开和加密的队伍
+            if (isFromTeam){
+                Integer status = teamQuery.getStatus();
+                TeamStatusEnum statusEnum = TeamStatusEnum.getEnumByValue(status);
+                if (statusEnum == null) {
+                    statusEnum = TeamStatusEnum.PUBLIC;
+                }
+                if (!isAdmin && TeamStatusEnum.PRIVATE.equals(statusEnum)) {
+                    throw new BusinessException(ErrorCode.NO_AUTH);
+                }
                 queryWrapper.eq("status", statusEnum.getValue());
-            } else if (!isAdmin && !TeamStatusEnum.PUBLIC.equals(statusEnum)) {
-                throw new BusinessException(ErrorCode.NO_AUTH);
             }
         }
         //不展示过期的队伍
@@ -172,9 +179,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         if (teamList == null) {
             return new ArrayList<>();
         }
-
         List<TeamUserVo> teamUserVoList = new ArrayList<>();
-        //关联查询创建人用户信息
+        //1.关联查询创建人用户信息，封装到TeamUserVo
         for (Team team : teamList) {
             Long userId = team.getUserId();
             if (userId == null) {
@@ -183,25 +189,36 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             User user = userService.getById(userId);
             TeamUserVo teamUserVo = new TeamUserVo();
             BeanUtils.copyProperties(team, teamUserVo);
-            //脱敏创建人用户信息
+            //脱敏创建人用户信息，封装到teamUserVo的createUser属性中
             if (user != null) {
                 UserVo userVo = new UserVo();
                 BeanUtils.copyProperties(user, userVo);
                 teamUserVo.setCreateUser(userVo);
             }
-            //查询队员信息,可能会很耗费性能，建议用自己写SQL的方式实现
-//            Long teamId = team.getId();
-//            if (teamId == null) {
-//                continue;
-//            }
-//            List<User> userList = userMapper.searchTeamMembers(teamId);
-//            if (userList != null) {
-//                List<UserVo> teamMemberList = new ArrayList<>();
-//                BeanUtils.copyProperties(userList, teamMemberList);
-//                teamUserVo.setTeamMemberList(teamMemberList);
-//            }
             teamUserVoList.add(teamUserVo);
+        }
+        //2.判断当前用户是否已加入队伍
+        List<Long> teamIdList = teamUserVoList.stream().map(TeamUserVo::getId).collect(Collectors.toList());
+        try {
+            QueryWrapper<UserTeam> userTeamQueryWrapper = new QueryWrapper<>();
+            userTeamQueryWrapper.in("teamId", teamIdList);
+            userTeamQueryWrapper.eq("userId", loginUser.getId());
+            //查询出当前用户加入了哪些队伍
+            List<UserTeam> userTeamList = userTeamService.list(userTeamQueryWrapper);
+            //取出用户加入队伍的id列表,对每个队伍进行判断是否包含其中,设置hasJoin
+            Set<Long> hasJoinTeamIdList = userTeamList.stream().map(UserTeam::getTeamId).collect(Collectors.toSet());
 
+            teamUserVoList.forEach(teamUserVo -> {
+                Long teamId = teamUserVo.getId();
+                boolean hasJoin = hasJoinTeamIdList.contains(teamId);
+                teamUserVo.setHasJoin(hasJoin);
+                //3.查询已加入队伍的人数，并设置hasJoinNum
+                QueryWrapper<UserTeam> userJoinNumQueryWrapper = new QueryWrapper<>();
+                userJoinNumQueryWrapper.eq("teamId", teamId);
+                long count = userTeamService.count(userJoinNumQueryWrapper);
+                teamUserVo.setHasJoinNum((int) count);
+            });
+        } catch (Exception e) {
         }
         return teamUserVoList;
     }
@@ -254,34 +271,38 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
             }
         }
+        //该用户加入的队伍数量
         Long userId = loginUser.getId();
-        QueryWrapper<UserTeam> userTeamQueryWrapper = new QueryWrapper<>();
-        userTeamQueryWrapper.eq("userId", userId);
-        long hasJoinNum = userTeamService.count(userTeamQueryWrapper);
-        if (hasJoinNum >= 5) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户最多创建和加入5个队伍");
+        synchronized (this) {
+            QueryWrapper<UserTeam> userTeamQueryWrapper = new QueryWrapper<>();
+            userTeamQueryWrapper.eq("userId", userId);
+            long hasJoinNum = userTeamService.count(userTeamQueryWrapper);
+            if (hasJoinNum >= 5) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户最多创建和加入5个队伍");
+            }
+            //不能重复加入已加入的队伍
+            userTeamQueryWrapper = new QueryWrapper();
+            userTeamQueryWrapper.eq("teamId", teamId);
+            userTeamQueryWrapper.eq("userId", userId);
+            long hasUserJoinTeam = userTeamService.count(userTeamQueryWrapper);
+            if (hasUserJoinTeam > 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户已加入该队伍");
+            }
+
+            //不能加入已满的队伍
+            userTeamQueryWrapper = new QueryWrapper();
+            userTeamQueryWrapper.eq("teamId", teamId);
+            long count = userTeamService.count(userTeamQueryWrapper);
+            if (count >= team.getMaxNum()) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍已满");
+            }
+            //修改用户关联队伍表信息
+            UserTeam userTeam = new UserTeam();
+            userTeam.setUserId(userId);
+            userTeam.setTeamId(teamId);
+            userTeam.setJoinTime(new Date());
+            return userTeamService.save(userTeam);
         }
-        //不能重复加入已加入的队伍
-        userTeamQueryWrapper = new QueryWrapper();
-        userTeamQueryWrapper.eq("teamId", teamId);
-        userTeamQueryWrapper.eq("userId", userId);
-        long hasUserJoinTeam = userTeamService.count(userTeamQueryWrapper);
-        if (hasUserJoinTeam > 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户已加入该队伍");
-        }
-        //不能加入已满的队伍
-        userTeamQueryWrapper = new QueryWrapper();
-        userTeamQueryWrapper.eq("teamId", teamId);
-        long count = userTeamService.count(userTeamQueryWrapper);
-        if (count >= team.getMaxNum()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍已满");
-        }
-        //修改用户关联队伍表信息
-        UserTeam userTeam = new UserTeam();
-        userTeam.setUserId(userId);
-        userTeam.setTeamId(teamId);
-        userTeam.setJoinTime(new Date());
-        return userTeamService.save(userTeam);
     }
 
     @Override
@@ -366,6 +387,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
 
     /**
      * 根据teamId查询队伍信息，判断队伍是否存在
+     *
      * @param teamId
      * @return
      */

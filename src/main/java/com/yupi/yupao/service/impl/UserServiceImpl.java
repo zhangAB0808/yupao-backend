@@ -11,6 +11,7 @@ import com.yupi.yupao.model.vo.UserVo;
 import com.yupi.yupao.service.UserService;
 import com.yupi.yupao.mapper.UserMapper;
 import com.yupi.yupao.utils.AlgorithmUtils;
+import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
@@ -22,7 +23,6 @@ import org.springframework.util.DigestUtils;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -52,9 +52,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private static final String SALT = "yupi";
 
     @Override
-    public long userRegister(String userAccount, String userPassword, String checkPassword, String planetCode) {
+    public long userRegister(String userAccount, String userPassword, String checkPassword) {
         // 1. 校验
-        if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword, planetCode)) {
+        if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         if (userAccount.length() < 4) {
@@ -63,9 +63,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (userPassword.length() < 8 || checkPassword.length() < 8) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户密码过短");
         }
-        if (planetCode.length() > 5) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "星球编号过长");
-        }
+
         // 账户不能包含特殊字符
         String validPattern = "[`~!@#$%^&*()+=|{}':;',\\\\[\\\\].<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]";
         Matcher matcher = Pattern.compile(validPattern).matcher(userAccount);
@@ -83,20 +81,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (count > 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号重复");
         }
-        // 星球编号不能重复
-        queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("planetCode", planetCode);
-        count = userMapper.selectCount(queryWrapper);
-        if (count > 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "编号重复");
-        }
-        // 2. 加密
+
+        // 1. 加密
         String encryptPassword = DigestUtils.md5DigestAsHex((SALT + userPassword).getBytes());
-        // 3. 插入数据
+        // 2. 插入数据
         User user = new User();
         user.setUserAccount(userAccount);
         user.setUserPassword(encryptPassword);
-        user.setPlanetCode(planetCode);
         boolean saveResult = this.save(user);
         if (!saveResult) {
             return -1;
@@ -284,6 +275,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     /**
      * 是否为管理员,重载
+     *
      * @param loginUser
      * @return
      */
@@ -294,15 +286,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     /**
      * 匹配用户人数
+     *
      * @param num
      * @param loginUser
      * @return
      */
     @Override
     public List<UserVo> matchUsers(long num, User loginUser) {
+        //查询用户标签不为空，不查用户自己，只查询id,tags，优化性能
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.ne("id",loginUser.getId());
         queryWrapper.isNotNull("tags");
+        queryWrapper.ne("id", loginUser.getId());
+        queryWrapper.select("id", "tags");
         //查出所有用户，进行相似度匹配
         List<User> userList = this.list(queryWrapper);
         String tags = loginUser.getTags();
@@ -310,43 +305,37 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         //将登录用户的标签json字符串转成List<String>
         List<String> tagList = gson.fromJson(tags, new TypeToken<List<String>>() {
         }.getType());
-        //用户列表的下标=>相似度
-        SortedMap<Integer, Long> indexSimilarityMap = new TreeMap<>();
+        //用户列表=>Pair键值对，(用户->相似度)
+        List<Pair<User, Long>> list = new ArrayList<>();
+
         for (int i = 0; i < userList.size(); i++) {
             User user = userList.get(i);
             String userTags = user.getTags();
-            //无标签
-            if (StringUtils.isBlank(userTags)) {
+            //过滤无标签的用户和用户自己
+            if (StringUtils.isBlank(userTags) || user.getId().equals(loginUser.getId())) {
                 continue;
             }
             List<String> userTagList = gson.fromJson(userTags, new TypeToken<List<String>>() {
             }.getType());
             long distance = AlgorithmUtils.minDistance(tagList, userTagList);
-            indexSimilarityMap.put(i, distance);
+            list.add(new Pair<>(user, distance));
         }
-        //对相似度进行排序后，取出前num个的下标index(取出key)
-        int i=0;
-        for (Map.Entry<Integer, Long> entry : indexSimilarityMap.entrySet()) {
-            if (i>num){
-                break;
-            }
-            System.out.println(entry.getKey()+":"+entry.getValue());
-           i++;
-        }
-
-        List<Integer> minDistanceIndexList = indexSimilarityMap.keySet().stream().limit(num).collect(Collectors.toList());
-        List<UserVo> userVoList = minDistanceIndexList.stream().map(index -> {
+        //根据Pair的value编辑距离从小到大排序，对相似度进行排序后，取前num个
+        List<Pair<User, Long>> topUserList = list.stream()
+                .sorted((a, b) -> (int) (a.getValue() - b.getValue()))
+                .limit(num).collect(Collectors.toList());
+        //将topUserList的key提取出来得到要返回的用户信息
+        List<UserVo> userVoList = topUserList.stream().map(pair -> {
+            //pair.getKey()中user只存了id,tags两列信息，还需根据id查数据库完整信息
+            Long userId = pair.getKey().getId();
+            User user = this.getById(userId);
+            //将user封装成userVo返回
             UserVo userVo = new UserVo();
-            //通过下标获得user对象
-            User user = userList.get(index);
-            BeanUtils.copyProperties(user, userVo);
+            BeanUtils.copyProperties(user,userVo);
             return userVo;
         }).collect(Collectors.toList());
-
         return userVoList;
     }
-
-
 
 
 }
