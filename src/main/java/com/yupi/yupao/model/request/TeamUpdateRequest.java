@@ -7,6 +7,7 @@ import java.util.Date;
 
 /**
  * 更新队伍请求体
+ * @author Administrator
  */
 @Data
 public class TeamUpdateRequest implements Serializable {
@@ -25,6 +26,11 @@ public class TeamUpdateRequest implements Serializable {
      * 描述
      */
     private String description;
+
+    /**
+     * 队伍头像
+     */
+    private String teamAvatarUrl;
 
     /**
      * 过期时间

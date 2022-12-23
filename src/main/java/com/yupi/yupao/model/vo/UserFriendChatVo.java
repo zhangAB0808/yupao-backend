@@ -5,16 +5,20 @@ import lombok.Data;
 import java.io.Serializable;
 import java.util.Date;
 
+/**
+ * @author Administrator
+ */
 @Data
-public class UserVo implements Serializable {
+public class UserFriendChatVo implements Serializable {
 
     /**
-     * id
+     * 好友id
      */
     private Long id;
 
+
     /**
-     * 用户昵称
+     * 好友昵称
      */
     private String username;
 
@@ -58,24 +62,11 @@ public class UserVo implements Serializable {
      */
     private String userProfile;
 
-    /**
-     * 创建时间
-     */
-    private Date createTime;
 
     /**
-     *
+     *聊天更新时间
      */
     private Date updateTime;
 
-    /**
-     * 星球编号
-     */
-    private String planetCode;
-
-    /**
-     * 是否为用户好友
-     */
-    private Boolean isFriend=false;
-
+    private String chatContent;
 }

@@ -26,6 +26,11 @@ public class TeamAddRequest {
     private Integer maxNum;
 
     /**
+     * 队伍头像
+     */
+    private String teamAvatarUrl;
+
+    /**
      * 过期时间
      */
     private Date expireTime;

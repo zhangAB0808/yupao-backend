@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  * 队伍接口
  */
 @RestController
-@CrossOrigin(origins = {"http://localhost:3000"})
+@CrossOrigin(origins = {"http://localhost:3000","http://182.92.187.185:8181"})
 @RequestMapping("/team")
 public class TeamController {
 

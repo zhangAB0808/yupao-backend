@@ -1,11 +1,8 @@
 package com.yupi.yupao.model.dto;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.yupi.yupao.common.PageRequest;
 import lombok.Data;
 
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -37,6 +34,11 @@ public class TeamQuery extends PageRequest {
      * 描述
      */
     private String description;
+
+    /**
+     * 队伍头像
+     */
+    private String teamAvatarUrl;
 
     /**
      * 最大人数

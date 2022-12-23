@@ -48,7 +48,7 @@ public class UserTeam implements Serializable {
      * 是否删除
      */
     @TableLogic
-    private Byte isDelete;
+    private Integer isDelete;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

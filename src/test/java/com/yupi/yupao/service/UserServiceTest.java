@@ -4,8 +4,13 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.yupi.yupao.YuPaoApplication;
 import com.yupi.yupao.model.domain.User;
+import com.yupi.yupao.model.domain.UserFriend;
+import com.yupi.yupao.model.dto.ChatContentDto;
 import org.junit.Assert;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
@@ -24,7 +29,9 @@ import java.util.concurrent.CompletableFuture;
 class UserServiceTest {
 
     @Resource
-    private UserService userService;
+    private UserFriendService userFriendService;
+//    @Resource
+//    private UserService userService;
 
 //    @Test
 //    void searchUserByTags() {
@@ -107,7 +114,12 @@ class UserServiceTest {
 
 //    @Test
 //    void test() {
-//
+//        QueryWrapper<UserFriend> queryWrapper = new QueryWrapper<>();
+//        queryWrapper.eq("userId",4).eq("friendId",6);
+//        UserFriend one = userFriendService.getOne(queryWrapper);
+//        String chatContent = one.getChatContent();
+//        ArrayList<ChatContentDto> list= new Gson().fromJson(chatContent,new TypeToken<ArrayList<ChatContentDto>>(){}.getType());
+//        System.out.println(list);
 //    }
 
 

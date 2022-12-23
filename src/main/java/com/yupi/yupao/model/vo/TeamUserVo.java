@@ -8,6 +8,7 @@ import java.util.List;
 
 /**
  * 队伍和用户信息封装类
+ * @author Administrator
  */
 @Data
 public class TeamUserVo implements Serializable {
@@ -26,6 +27,11 @@ public class TeamUserVo implements Serializable {
      * 描述
      */
     private String description;
+
+    /**
+     * 队伍头像
+     */
+    private String teamAvatarUrl;
 
     /**
      * 最大人数
@@ -76,5 +82,8 @@ public class TeamUserVo implements Serializable {
      * 队伍已经加入的人数
      */
     private Integer hasJoinNum;
+
+    private String createTimeVo;
+    private String expireTimeVo;
 
 }

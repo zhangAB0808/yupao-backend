@@ -33,6 +33,11 @@ public class Team implements Serializable {
     private String description;
 
     /**
+     * 队伍头像
+     */
+    private String teamAvatarUrl;
+
+    /**
      * 最大人数
      */
     private Integer maxNum;

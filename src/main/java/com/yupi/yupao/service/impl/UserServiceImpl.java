@@ -8,6 +8,7 @@ import com.yupi.yupao.common.ErrorCode;
 import com.yupi.yupao.exception.BusinessException;
 import com.yupi.yupao.model.domain.User;
 import com.yupi.yupao.model.vo.UserVo;
+import com.yupi.yupao.service.UserFriendService;
 import com.yupi.yupao.service.UserService;
 import com.yupi.yupao.mapper.UserMapper;
 import com.yupi.yupao.utils.AlgorithmUtils;
@@ -15,6 +16,7 @@ import javafx.util.Pair;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -27,8 +29,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.yupi.yupao.contant.UserConstant.ADMIN_ROLE;
-import static com.yupi.yupao.contant.UserConstant.USER_LOGIN_STATE;
+import static com.yupi.yupao.contant.UserConstant.*;
 
 /**
  * 用户服务实现类
@@ -42,6 +43,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Resource
     private UserMapper userMapper;
+
+    @Resource
+    @Lazy
+    private UserFriendService userFriendService;
 
     @Resource
     private RedisTemplate redisTemplate;
@@ -156,6 +161,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         safetyUser.setUserStatus(originUser.getUserStatus());
         safetyUser.setCreateTime(originUser.getCreateTime());
         safetyUser.setTags(originUser.getTags());
+        safetyUser.setUserProfile(originUser.getUserProfile());
         return safetyUser;
     }
 
@@ -166,8 +172,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public int userLogout(HttpServletRequest request) {
-        // 移除登录态
+        // 移除登录态,删除用户信息缓存
+        User loginUser = this.getLoginUser(request);
         request.getSession().removeAttribute(USER_LOGIN_STATE);
+        redisTemplate.delete(RECOMMEND_USER_KEY + loginUser.getId());
         return 1;
     }
 
@@ -231,12 +239,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             }.getType());
             tempTagNameList = Optional.ofNullable(tempTagNameList).orElse(new HashSet<>());
             for (String tagName : tagNameList) {
-                if (!tempTagNameList.contains(tagName)) {
+                //不包含大写和小写时，过滤掉
+                if (!tempTagNameList.contains(tagName.toLowerCase()) &&
+                     !tempTagNameList.contains(tagName.toUpperCase())) {
                     return false;
                 }
             }
             return true;
-        }).map(this::getSafetyUser).collect(Collectors.toList());
+        }).collect(Collectors.toList());
         return collect;
     }
 
@@ -331,7 +341,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             User user = this.getById(userId);
             //将user封装成userVo返回
             UserVo userVo = new UserVo();
-            BeanUtils.copyProperties(user,userVo);
+            BeanUtils.copyProperties(user, userVo);
+            //将user标记是否为其好友
+            boolean result = userFriendService.isFriend(user, loginUser);
+            userVo.setIsFriend(result);
             return userVo;
         }).collect(Collectors.toList());
         return userVoList;

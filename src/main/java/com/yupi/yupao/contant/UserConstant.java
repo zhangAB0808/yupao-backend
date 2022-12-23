@@ -12,6 +12,9 @@ public interface UserConstant {
      */
     String USER_LOGIN_STATE = "userLoginState";
 
+
+    String RECOMMEND_USER_KEY= "user:recommend:";
+
     //  ------- 权限 --------
 
     /**

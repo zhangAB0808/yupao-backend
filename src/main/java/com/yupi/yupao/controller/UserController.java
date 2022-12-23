@@ -10,9 +10,11 @@ import com.yupi.yupao.model.domain.User;
 import com.yupi.yupao.model.request.UserLoginRequest;
 import com.yupi.yupao.model.request.UserRegisterRequest;
 import com.yupi.yupao.model.vo.UserVo;
+import com.yupi.yupao.service.UserFriendService;
 import com.yupi.yupao.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.util.CollectionUtils;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.yupi.yupao.contant.UserConstant.RECOMMEND_USER_KEY;
 import static com.yupi.yupao.contant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -39,6 +42,9 @@ public class UserController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private UserFriendService userFriendService;
 
     @Resource
     private RedisTemplate redisTemplate;
@@ -69,7 +75,7 @@ public class UserController {
         return ResultUtils.success(user);
     }
 
-    @PostMapping("/logout")
+    @GetMapping("/logout")
     public BaseResponse<Integer> userLogout(HttpServletRequest request) {
         if (request == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -91,6 +97,7 @@ public class UserController {
         User safetyUser = userService.getSafetyUser(user);
         return ResultUtils.success(safetyUser);
     }
+
 
     @GetMapping("/search")
     public BaseResponse<List<User>> searchUsers(String username, HttpServletRequest request) {
@@ -131,37 +138,42 @@ public class UserController {
     }
 
     @GetMapping("/search/tags")
-    public BaseResponse<List<User>> searchUserByTags(@RequestParam(required = false) List<String> tagNameList) {
+    public BaseResponse<List<UserVo>> searchUserByTags(@RequestParam(required = false) List<String> tagNameList,HttpServletRequest request) {
         if (CollectionUtils.isEmpty(tagNameList)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         List<User> userList = userService.searchUserByTags(tagNameList);
-        return ResultUtils.success(userList);
+        //将查出的用户进行标记是否为好友
+        List<UserVo> userVoList = signFriend(userList,request);
+        return ResultUtils.success(userVoList);
     }
 
     /**
-     *普通模式推荐，直接查询所有用户推荐
+     * 普通模式推荐，直接查询所有用户推荐,分页
      * @param pageNum
      * @param pageSize
      * @param request
      * @return
      */
     @GetMapping("/recommend")
-    public BaseResponse<Page<User>> recommendUsers(int pageNum, int pageSize, HttpServletRequest request) {
+    public BaseResponse<List<UserVo>> recommendUsers(int pageNum, int pageSize, HttpServletRequest request) {
         //获取当前登录用户
         User loginUser = userService.getLoginUser(request);
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         //将key格式化存取,便于与其他模块区别，防止混淆
-        String key = String.format("user:recommend:%s", loginUser.getId());
+        String key = String.format(RECOMMEND_USER_KEY+loginUser.getId());
         //如果有缓存，直接读缓存
         Page<User> userPage = (Page<User>) valueOperations.get(key);
         if (userPage != null) {
-            return ResultUtils.success(userPage);
+            List<User> userList = userPage.getRecords();
+            //对好友列表每一位好友，标记是否为其好友
+            List<UserVo> userVoList = signFriend(userList, request);
+            return ResultUtils.success(userVoList);
         }
         //无缓存，读数据库
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         //排除用户自己
-        queryWrapper.ne("id",loginUser.getId());
+        queryWrapper.ne("id", loginUser.getId());
         userPage = userService.page(new Page<>(pageNum, pageSize), queryWrapper);
         //写入缓存中,设置过期时间,如果缓存存入失败了，是要后台捕获异常，数据正常返回给用户，而不是抛异常！！！
         try {
@@ -169,23 +181,39 @@ public class UserController {
         } catch (Exception e) {
             log.error("redis set key error", e);
         }
-        return ResultUtils.success(userPage);
+        List<UserVo> userVoList = signFriend(userPage.getRecords(), request);
+        return ResultUtils.success(userVoList);
     }
 
     /**
      * 心动模式，根据相似度匹配推荐用户
-     * @param num 匹配用户人数
+     * @param num     匹配用户人数
      * @param request
      * @return
      */
     @GetMapping("/match")
-    public BaseResponse<List<UserVo>> matchUsers(long num,HttpServletRequest request){
-          if (num<=0||num>20){
-                  throw new BusinessException(ErrorCode.PARAMS_ERROR);
-          }
+    public BaseResponse<List<UserVo>> matchUsers(long num, HttpServletRequest request) {
+        if (num <= 0 || num > 20) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
         User loginUser = userService.getLoginUser(request);
-        List<UserVo> userVoList = userService.matchUsers(num,loginUser);
+        List<UserVo> userVoList = userService.matchUsers(num, loginUser);
         return ResultUtils.success(userVoList);
-
     }
+
+    /**
+     * 对查出的用户列表进行好友标记
+     */
+    public List<UserVo>  signFriend(List<User> userList,HttpServletRequest request){
+        List<UserVo> userVoList = userList.stream().map(user -> {
+            boolean result = userFriendService.isFriend(user, request);
+            UserVo userVo = new UserVo();
+            BeanUtils.copyProperties(user,userVo);
+            userVo.setIsFriend(result);
+            return userVo;
+        }).collect(Collectors.toList());
+        return userVoList;
+    }
+
+
 }
